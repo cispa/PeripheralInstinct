@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script>
+      const bufferSize = 64 * 1024 * 1024;
+      const wasmPageSize = 64 * 1024;
+      const amountOfPages = bufferSize / wasmPageSize;
+
+      // global shared memory
+      memory = new WebAssembly.Memory({
+        initial: amountOfPages,
+        maximum: amountOfPages,
+        shared: true,
+      });
+
+      async function startClockWorkerJS(view) {
+        const clock = new Worker("clock.js");
+        clock.postMessage({ view: view });
+        return clock;
+      }
+
+      async function run() {
+        const view = new DataView(memory.buffer);
+        const clock = await startClockWorkerJS(view);
+
+        // warmup
+        await new Promise((r) => setTimeout(r, 2000));
+
+        const apple_vid = 0x05ac;
+        const blink_vid = 0x27b8;
+        const novid_vid = 0x1;
+
+        const repeat = 10000n;
+
+        let sum_apple = 0n;
+        let sum_blink = 0n;
+        let sum_novid = 0n;
+
+        for (let i = 0n; i < repeat; i++) {
+          let vendor_id = i % 2n === 0n ? apple_vid : novid_vid;
+          let start = view.getBigUint64(256, true);
+          try {
+            await navigator.hid.requestDevice({
+              filters: [
+                {
+                  vendorId: vendor_id,
+                },
+              ],
+            });
+          } catch (err) {
+            let end = view.getBigUint64(256, true);
+            if (vendor_id === apple_vid) sum_apple += end - start;
+            else if (vendor_id === blink_vid) sum_blink += end - start;
+            else sum_novid += end - start;
+          }
+        }
+
+        console.table({
+          Apple: sum_apple / repeat,
+          Blink: sum_blink / repeat,
+          novid: sum_novid / repeat,
+        });
+      }
+
+      run();
+    </script>
+  </head>
+  <body
+    style="
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100%;
+    "
+  >
+    <div style="width: 40%"></div>
+  </body>
+</html>

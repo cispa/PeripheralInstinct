@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script>
+      async function main() {
+        /*
+        Utils
+        */
+
+        const waitFor = (duration) =>
+          new Promise((r) => setTimeout(r, duration));
+
+        console.log = (text) => {
+          log.innerText += "\n" + text;
+        };
+
+        async function blink() {
+          const reportId = 1;
+          console.log(`The "${device.productName}" is blinking! The XSS works.`);
+          for (let i = 0; i < 100; i++) {
+            // Turn off
+            await device.sendFeatureReport(reportId, Uint32Array.from([0, 0]));
+            await waitFor(100);
+            // Turn on
+            await device.sendFeatureReport(
+              reportId,
+              Uint32Array.from([512, 0])
+            );
+            await waitFor(100);
+          }
+        }
+
+        document
+          .getElementById("XSS-button")
+          .addEventListener("click", async () => {
+            let fragment = window.location.hash.slice(1);
+            try {
+              eval(fragment);
+            } catch (err) {
+              console.log(err);
+            }
+          });
+
+        try {
+          [device] = await navigator.hid.requestDevice({
+            filters: [{ vendorId: 0x05ac, usage: 0x0f, usagePage: 0xff00 }],
+          });
+          if (!device) return;
+
+          console.log(`User selected "${device.productName}" HID device.`);
+          await device.open();
+          console.log(`Now press the "XSS!" button to start the demo.`);
+        } catch (err) {
+          console.log(err);
+        }
+      }
+    </script>
+  </head>
+  <body
+    style="
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100%;
+    "
+  >
+    <div style="width: 40%;">
+      <div style="margin-bottom: 2rem; display: flex; justify-content: space-around;">
+        <button onclick="main()">Connect Device</button>
+        <button id="XSS-button">XSS!</button>
+      </div>
+      <div style="font-family: sans-serif" id="log">Press the "Connect Device" button to start!</div>
+    </div>
+  </body>
+</html>

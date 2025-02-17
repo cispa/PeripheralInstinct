@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <script>
+    (function () {
+      // originals are only accessible in this scope
+      let original_requestDevice = window.navigator.hid.requestDevice;
+      let original_getDevices = window.navigator.hid.getDevices;
+
+      let encapsulate = function (original) {
+        return async function () {
+          let devices = await original.apply(window.navigator.hid, arguments);
+          // ... replace device.sendReport and device.sendFeatureReport
+          //  on sensitive devices by encapsulations
+          for (let device of devices) {
+            device.sendReport = function () { return; }
+            device.sendFeatureReport = function () { return; }
+            
+            // prevent removing encapsulations because it then returns
+            // to default
+            Object.freeze(device);
+          }
+          
+          return devices;
+        };
+      };
+
+      window.navigator.hid.requestDevice = encapsulate(original_requestDevice);
+      window.navigator.hid.getDevices = encapsulate(original_getDevices);
+    })();
+  </script>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minimal Mitigation</title>
+  </head>
+  <body>
+    <script>
+        let main = async function () {
+          let devices = await window.navigator.hid.requestDevice({
+            filters: [],
+          });
+          console.log(devices);
+          console.log(devices[0].sendReport);
+          delete devices[0].sendReport;
+          console.log(devices[0].sendReport);
+          await devices[0].open();
+          console.log(devices[0].sendReport);
+        };
+    </script>
+    <button onclick="main()">Start</button>
+  </body>
+</html>

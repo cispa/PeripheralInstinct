@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebHID Threat Estimator</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+      }
+      main {
+        width: 70%;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 style="text-align: center">WebHID Threat Estimator</h1>
+      <p style="text-align: justify">
+        This tool checks if your HID device could hypothetically be abused by a
+        malicious actor given the WebHID permission. For a device to be
+        vulnerable, it has to implement a keyboard and be able to receive
+        commands from a malicious actor. These commands can be either Output or
+        Feature reports.
+      </p>
+      <div style="display: flex; justify-content: center">
+        <button id="startbutton">Start</button>
+      </div>
+      <div>
+        <h3 style="text-align: center">Result</h3>
+        <div style="display: flex; justify-content: center">
+          <table style="width: 50%">
+            <tr>
+              <th>Feature</th>
+              <th>Implemented?</th>
+            </tr>
+            <tr>
+              <td>Keyboard Usage</td>
+              <td style="text-align: center" id="resultkeyboard">&#10068;</td>
+            </tr>
+            <tr>
+              <td>Output Reports</td>
+              <td style="text-align: center" id="resultoutput">&#10068;</td>
+            </tr>
+            <tr>
+              <td>Feature Reports</td>
+              <td style="text-align: center" id="resultfeature">&#10068;</td>
+            </tr>
+          </table>
+        </div>
+        <h2
+          id="result"
+          style="text-align: center; margin-top: 2rem; margin-bottom: 2rem"
+        ></h2>
+        <h4 style="text-align: center">Output Reports</h4>
+        <ul id="resultoutputreports" style="font-family: monospace"></ul>
+        <h4 style="text-align: center">Feature Reports</h4>
+        <ul id="resultfeaturereports" style="font-family: monospace"></ul>
+      </div>
+    </main>
+    <script>
+      function getOutputReports(collections) {
+        let result = new Set();
+        for (let col of collections) {
+          if ("outputReports" in col)
+            for (let report of col.outputReports) result.add(report);
+          let child_results = getOutputReports(col.children);
+          if (child_results.size > 0)
+            for (let report of child_results) {
+              result.add(report);
+            }
+        }
+        return result;
+      }
+
+      function getFeatureReports(collections) {
+        let result = new Set();
+        for (let col of collections) {
+          if ("featureReports" in col)
+            for (let report of col.featureReports) result.add(report);
+          let child_results = getFeatureReports(col.children);
+          if (child_results.size > 0)
+            for (let report of child_results) {
+              result.add(report);
+            }
+        }
+        return result;
+      }
+
+      function deviceIsKeyboard(collections) {
+        return collections.reduce(
+          (res, col) =>
+            res ||
+            (col.usagePage === 0x01 && col.usage === 0x06) ||
+            deviceIsKeyboard(col.children),
+          false
+        );
+      }
+
+      async function main() {
+        let devices = await navigator.hid.requestDevice({ filters: [] });
+        console.log("Devices", devices);
+
+        let isKeyboard = false;
+        let outputReports = new Set();
+        let featureReports = new Set();
+
+        for (let device of devices) {
+          isKeyboard = isKeyboard || deviceIsKeyboard(device.collections);
+          let deviceOutputReports = getOutputReports(device.collections);
+          if (deviceOutputReports.size > 0)
+            for (let report of deviceOutputReports) outputReports.add(report);
+          let deviceFeatureReports = getFeatureReports(device.collections);
+          if (deviceFeatureReports.size > 0)
+            for (let report of deviceFeatureReports) featureReports.add(report);
+        }
+
+        console.log("Output Reports", outputReports);
+        console.log("Feature Reports", featureReports);
+
+        if (isKeyboard)
+          document.getElementById("resultkeyboard").innerHTML = "&#10071;";
+        else
+          document.getElementById("resultkeyboard").innerHTML =
+            "&#10006;&#65039;";
+
+        if (outputReports) {
+          document.getElementById("resultoutput").innerHTML = "&#10071;";
+          let container = document.getElementById("resultoutputreports");
+          for (let report of outputReports) {
+            let child = document.createElement("li");
+            let all_usages = "";
+            for (let item of report.items) {
+              if ("usages" in item)
+                for (let usage of item.usages)
+                  all_usages += `0x${((usage >> 16) & 0xffff)
+                    .toString(16)
+                    .padStart(4, "0")} 0x${(usage & 0xffff)
+                    .toString(16)
+                    .padStart(4, "0")}, `;
+            }
+            child.innerHTML = `Report ID: 0x${report.reportId
+              .toString(16)
+              .padStart(2, "0")}, Usage: ${all_usages}`;
+            container.appendChild(child);
+          }
+        } else
+          document.getElementById("resultoutput").innerHTML =
+            "&#10006;&#65039;";
+
+        if (featureReports) {
+          document.getElementById("resultfeature").innerHTML = "&#10071;";
+          let container = document.getElementById("resultfeaturereports");
+          for (let report of featureReports) {
+            let child = document.createElement("li");
+            let all_usages = "";
+            for (let item of report.items) {
+              if ("usages" in item)
+                for (let usage of item.usages)
+                  all_usages += `0x${((usage >> 16) & 0xffff)
+                    .toString(16)
+                    .padStart(4, "0")} 0x${(usage & 0xffff)
+                    .toString(16)
+                    .padStart(4, "0")}, `;
+            }
+            child.innerHTML = `Report ID: 0x${report.reportId
+              .toString(16)
+              .padStart(2, "0")}, Usage: ${all_usages}`;
+            container.appendChild(child);
+          }
+        } else
+          document.getElementById("resultfeature").innerHTML =
+            "&#10006;&#65039;";
+
+        if (isKeyboard && (outputReports || featureReports)) {
+          document.getElementById("result").innerHTML = "Likely vulnerable";
+          document.getElementById("result").style.color = "red";
+        } else {
+          document.getElementById("result").innerHTML = "Not vulnerable";
+          document.getElementById("result").style.color = "green";
+        }
+      }
+
+      document.getElementById("startbutton").addEventListener("click", main);
+    </script>
+  </body>
+</html>

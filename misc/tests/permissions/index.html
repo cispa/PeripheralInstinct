@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script>
+      async function main() {
+        /*
+        Utils
+        */
+
+        const waitFor = (duration) =>
+          new Promise((r) => setTimeout(r, duration));
+
+        console.log(await navigator.hid.getDevices());
+
+        try {
+          // let devices = await navigator.hid.getDevices();
+          // devices.forEach((device) => {
+          //   console.log(`HID: ${device.productName}`);
+          // });
+
+          [device] = await navigator.hid.requestDevice({
+            filters: [{ vendorId: 0x046d }],
+          });
+          console.log(device);
+          // if (!device) return;
+
+          // console.log(`User selected "${device.productName}" HID device.`);
+          // await device.open();
+        } catch (err) {
+          console.log(err);
+        }
+        for (let i = 0; i < 5; i += 1)
+          try {
+            [device] = await navigator.hid.requestDevice({
+              filters: [{ vendorId: 0x046d }],
+            });
+            console.log(i);
+            console.log(device);
+          } catch (err) {
+            console.log(i);
+            console.log(err);
+          }
+      }
+    </script>
+  </head>
+  <body
+    style="
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100%;
+    "
+  >
+    <div style="width: 40%">
+      <div
+        style="
+          margin-bottom: 2rem;
+          display: flex;
+          justify-content: space-around;
+        "
+      >
+        <button onclick="main()">Connect Device</button>
+      </div>
+      <div style="font-family: sans-serif" id="log">
+        Press the "Connect Device" button to start!
+      </div>
+    </div>
+  </body>
+</html>

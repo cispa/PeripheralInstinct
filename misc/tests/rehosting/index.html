@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Subdomain A</title>
+    <script>
+      async function main(doRequest) {
+        console.log = (text) => {
+          log.innerText += text + "\n";
+        };
+
+        try {
+          if (doRequest) {
+            [device] = await navigator.hid.requestDevice({
+              filters: [{ vendorId: 0x046d }],
+            });
+            if (!device) return;
+
+            console.log(`User selected "${device.productName}" HID device.`);
+            await device.open();
+          } else {
+            let devices = await navigator.hid.getDevices();
+            devices.forEach((device) => {
+              console.log(`Connected device: ${device.productName}`);
+            });
+          }
+        } catch (err) {
+          console.log(err);
+        }
+      }
+    </script>
+  </head>
+  <body
+    style="
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 90vh;
+      width: 99%;
+      font-family: sans-serif;
+      background-color: rgba(0, 0, 255, 0.5);
+    "
+    onload="main(false)"
+  >
+    <div style="width: 40%">
+      <h1 style="text-align: center;">Subdomain A</h1>
+      <div
+        style="
+          margin-bottom: 2rem;
+          display: flex;
+          justify-content: space-around;
+        "
+      >
+        <button onclick="main(true)">Connect Device</button>
+      </div>
+      <div id="log"></div>
+    </div>
+  </body>
+</html>

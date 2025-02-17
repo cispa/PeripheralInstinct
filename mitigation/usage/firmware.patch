@@ -1,0 +1,167 @@
+diff --git a/firmware/Makefile b/firmware/Makefile
+index 1e1e9bb..200af47 100644
+--- a/firmware/Makefile
++++ b/firmware/Makefile
+@@ -16,9 +16,9 @@
+ #
+ # Gecko
+ #
+-GECKO_SDK_REV = v5.0.0
++GECKO_SDK_REV = v4.0.0
+ 
+-TARGET = blink1mk3
++TARGET = firmware-v30x
+ 
+ ################################################################################
+ #
+diff --git a/firmware/firmware-v30x/descriptors.h b/firmware/firmware-v30x/descriptors.h
+index 1e8648d..5a47b8a 100644
+--- a/firmware/firmware-v30x/descriptors.h
++++ b/firmware/firmware-v30x/descriptors.h
+@@ -44,10 +44,53 @@ extern "C" {
+ 
+ #define REPORT_ID  1
+ #define REPORT2_ID  2
++#define REPORT3_ID  3
++#define REPORT4_ID  4
+ #define REPORT_COUNT 8
+ #define REPORT2_COUNT 60   // 60 = 15*4, must be 4-byte multiple in length & 4-byte aligned
++#define REPORT3_COUNT 60 
++#define REPORT4_COUNT 60 
+ 
+ 
++SL_ALIGN(4)
++const char MyHIDReportDescriptor[] SL_ATTRIBUTE_ALIGN(4) =
++{
++0x06, 0xAB, 0xFF,  // Usage Page (Vendor Defined 0xFFAB)
++0x0A, 0x00, 0x20,  // Usage (0x2000)
++0xA1, 0x01,        // Collection (Application)
++0x15, 0x00,        //   Logical Minimum (0)
++0x26, 0xFF, 0x00,  //   Logical Maximum (255)
++0x75, 0x08,        //   Report Size (8)
++0x85, 0x01,        //   Report ID (1)
++0x95, 0x08,        //   Report Count (8)
++0x09, 0x00,        //   Usage (0x00)
++0xB2, 0x02, 0x01,  //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile,Buffered Bytes)
++0x75, 0x08,        //   Report Size (8)
++0x85, 0x02,        //   Report ID (2)
++0x95, 0x3C,        //   Report Count (60)
++0x09, 0x00,        //   Usage (0x00)
++0xB2, 0x02, 0x01,  //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile,Buffered Bytes)
++0xC0,              // End Collection
++0x06, 0xAD, 0xDE,  // Usage Page (Reserved 0xDEAD)
++0x0A, 0xAD, 0xDE,  // Usage (0xDEAD)
++0xA1, 0x01,        // Collection (Application)
++0x15, 0x00,        //   Logical Minimum (0)
++0x26, 0xFF, 0x00,  //   Logical Maximum (255)
++0x75, 0x08,        //   Report Size (8)
++0x85, 0x03,        //   Report ID (3)
++0x95, 0x3C,        //   Report Count (60)
++0x09, 0xAD,        //   Usage (0xAD)
++0xB2, 0x02, 0x01,  //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile,Buffered Bytes)
++0x75, 0x08,        //   Report Size (8)
++0x85, 0x04,        //   Report ID (4)
++0x95, 0x3C,        //   Report Count (60)
++0x09, 0xFF,        //   Usage (0xFF)
++0xB2, 0x02, 0x01,  //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile,Buffered Bytes)
++0xC0,              // End Collection
++};
++
++
++/*
+ SL_ALIGN(4)
+ const char MyHIDReportDescriptor[] SL_ATTRIBUTE_ALIGN(4) =
+ {
+@@ -65,11 +108,21 @@ const char MyHIDReportDescriptor[] SL_ATTRIBUTE_ALIGN(4) =
+     0x75, 0x08,                    //   REPORT_SIZE (8)
+     0x85, REPORT2_ID,               //   REPORT_ID (1)
+     0x95, REPORT2_COUNT,            //   REPORT_COUNT (8)
++    0x09, 0xFF,                    //   USAGE (Undefined)
++    0xb2, 0x02, 0x01,              //   FEATURE (Data,Var,Abs,Buf)
++    0x75, 0x08,                    //   REPORT_SIZE (8)
++    0x85, REPORT3_ID,               //   REPORT_ID (1)
++    0x95, REPORT3_COUNT,            //   REPORT_COUNT (8)
++    0x09, 0x00,                    //   USAGE (0x00) Modified
++    0xb2, 0x02, 0x01,              //   FEATURE (Data,Var,Abs,Buf)
++    0x75, 0x08,                    //   REPORT_SIZE (8)
++    0x85, REPORT4_ID,               //   REPORT_ID (1)
++    0x95, REPORT4_COUNT,            //   REPORT_COUNT (8)
+     0x09, 0x00,                    //   USAGE (Undefined)
+     0xb2, 0x02, 0x01,              //   FEATURE (Data,Var,Abs,Buf)
+     0xc0,                          // END_COLLECTION
+ };
+-
++*/
+ /* 
+ // old blink1 hid descriptor
+ SL_ALIGN(4)
+diff --git a/firmware/firmware-v30x/main.c b/firmware/firmware-v30x/main.c
+index 9bcaaa9..b661bcf 100644
+--- a/firmware/firmware-v30x/main.c
++++ b/firmware/firmware-v30x/main.c
+@@ -1014,7 +1014,21 @@ static void handleMessage(uint8_t reportId)
+ #endif
+ 
+   // pre-load response with request, contains report id
+-  uint8_t count = (reportId==REPORT_ID) ? REPORT_COUNT : REPORT2_COUNT;
++  uint8_t count = 0;
++  switch (reportId)
++  {
++  case REPORT_ID:
++    count = REPORT_COUNT;
++    break;
++  case REPORT2_ID:
++    count = REPORT2_COUNT;
++    break;
++  case REPORT3_ID:
++    count = REPORT3_COUNT;
++    break;
++  case REPORT4_ID:
++    count = REPORT3_COUNT;
++  }
+   memcpy( (void*)reportToSend, (void*)inbuf, count);
+ 
+   uint8_t rId;
+@@ -1216,7 +1230,7 @@ static void handleMessage(uint8_t reportId)
+   // Go to bootloader          format: { 2, 'G','o','B','o','o','t' }
+   // Check against command "GoBoot"
+   //
+-  else if( cmd == 'G' ) {
++  else if( cmd == 'G' && (reportId == REPORT2_ID ||reportId == REPORT3_ID || reportId == REPORT4_ID) ) {
+     if( inbuf[2] == 'o' && inbuf[3] == 'B' && inbuf[4] == 'o' && inbuf[5] == 'o' && inbuf[6] == 't' ) {
+       dbg_str("GoBoot");
+       if( userData.startup_params.bootloaderlock ) {  // firmware has been locked
+@@ -1343,6 +1357,22 @@ static int Report2Received(USB_Status_TypeDef status, uint32_t xferred, uint32_t
+   return USB_STATUS_OK;
+ }
+ 
++/*****************************************************************************
++ * when report id 2 is received
++ *****************************************************************************/
++static int Report3Received(USB_Status_TypeDef status, uint32_t xferred, uint32_t remaining)
++{
++  (void) remaining;
++  //(void) xferred;  (void) status;
++
++  if ((status   == USB_STATUS_OK) &&
++      (xferred  == REPORT3_COUNT) ) {
++    //GPIO_PinOutSet(gpioPortF, 4);
++    handleMessage(REPORT3_ID);
++  }
++
++  return USB_STATUS_OK;
++}
+ /******************************************************************************
+  * @brief
+  *   Handle USB setup commands. Implements HID class specific commands.
+@@ -1413,6 +1443,10 @@ int setupCmd(const USB_Setup_TypeDef *setup)
+           USBD_Read(0, (void*)&inbuf, REPORT2_COUNT, Report2Received);
+           retVal = USB_STATUS_OK;
+         }
++        else if( (setup->wValue & 0xFF) == REPORT3_ID ) {
++          USBD_Read(0, (void*)&inbuf, REPORT3_COUNT, Report3Received);
++          retVal = USB_STATUS_OK;
++        }
+ 
+         break;
+ 
