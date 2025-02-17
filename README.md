@@ -5,6 +5,9 @@ The paper can be found [here](https://misc0110.net/files/peripheralinstinct_www2
 
 The repository is merely a collection of proof-of-concepts and is thus not well-documented, maintained or suitable for direct use.
 
+The artifact is citable via the following DOI: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14885057.svg)](https://doi.org/10.5281/zenodo.14885057)
+
+
 ## Exploit
 
 This part of the repository contains the code that can be used to reprogram devices from the web using different Browser APIs.
